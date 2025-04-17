@@ -3,7 +3,7 @@
 
 **AutoBackupSeq** is a lightweight and configurable CLI tool that automatically retrieves logs from **Seq**, filters them by time or custom rules, and **forwards them to your server or webhook endpoint**. Ideal for backup, analysis, or alerting workflows in enterprise environments.
 
-**Most of the code is generated or supported by ChatGPT-4. If you encounter any issues, they may or may not be fixed by me. Feel free to fork the project and make improvements if you're interested.
+**Most of the code is generated or supported by ChatGPT-4o. If you encounter any issues, they may or may not be fixed by me. Feel free to fork the project and make improvements if you're interested.
 ---
 
 ## ✨ Features
