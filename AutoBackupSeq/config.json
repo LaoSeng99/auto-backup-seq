@@ -1,0 +1,23 @@
+{
+  "SeqUrl": "https://your-seq-server.com",
+  "ApiKey": "your-seq-server-api-key",
+  "BackupDirectory": "backups",
+  "ApplicationName": "your-seq-log-app-name",
+  "Environment": "Production",
+  "LogType": "Request",
+  "PageSize": 1000,
+  "Scheduler": {
+    "Enabled": true,
+    "IntervalMinutes": 1440,
+    "QueryStartOffsetMinutes": -1440,
+    "QueryEndOffsetMinutes": 0
+  },
+  "Webhook": {
+    "Url": "https://your-server.com/webhook",
+    "Token": "your-secret-token",
+    "Header": "Authorization",
+    "SendFilteredLogs": true,
+    "RetryCount": 3,
+    "RetryIntervalBySec": 3
+  }
+}
