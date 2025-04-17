@@ -1,21 +1,22 @@
 
 # 🚀 AutoBackupSeq Console Toolkit
 
-一个用于 **备份与分析 Seq 日志** 的命令行工具，适用于企业内部环境中需要定期归档、Webhook 通报或本地分析的场景。
+**AutoBackupSeq** is a lightweight and configurable CLI tool that automatically retrieves logs from **Seq**, filters them by time or custom rules, and **forwards them to your server or webhook endpoint**. Ideal for backup, analysis, or alerting workflows in enterprise environments.
+
+**Most of the code is generated or supported by ChatGPT-4. If you encounter any issues, they may or may not be fixed by me. Feel free to fork the project and make improvements if you're interested.
+---
+
+## ✨ Features
+
+- 🔍 Retrieve logs from Seq (filterable by time range)
+- 📂 Analyze previously saved local log files
+- 🛠️ Start background scheduler to automate backups
+- 🧹 Automatically clean up old backup/exported files
+- 🧪 Test webhook delivery with latest data file
 
 ---
 
-## ✨ 功能特色
-
-- 🔍 从远程 Seq 拉取日志（可指定时间范围）
-- 📂 分析本地日志文件
-- 🛠️ 启动定时任务后台备份
-- 🧹 自动清理旧文件
-- 🧪 测试 Webhook 推送机制
-
----
-
-## ⚙️ 配置文件示例 (`config.json`)
+## ⚙️ Configuration Example (`config.json`)
 
 ```json
 {
@@ -45,17 +46,17 @@
 
 ---
 
-## 📦 快速开始
+## 📦 Quick Start
 
 ```bash
 dotnet run --project AutoBackupSeq
 ```
 
-> 默认行为将读取 `config.json` 并显示交互菜单。
+> By default, the app reads `config.json` and launches an interactive menu.
 
 ---
 
-## 🧱 日志 Payload 模板（空结构）
+## 🧱 Log Payload Template (Empty Structure)
 
 ```json
 {
@@ -81,7 +82,7 @@ dotnet run --project AutoBackupSeq
 
 ---
 
-## 🧩 C# 类定义（`LogEvent.cs`）
+## 🧩 C# Class Definition (`LogEvent.cs`)
 
 ```csharp
 public class LogEvent
@@ -108,7 +109,7 @@ public class LogEvent
 
 ---
 
-## 🧩 TypeScript 接口定义（`LogEvent.ts`）
+## 🧩 TypeScript Interface (`LogEvent.ts`)
 
 ```ts
 export interface LogEvent {
@@ -134,7 +135,7 @@ export interface LogEvent {
 
 ---
 
-## 🧪 测试建议（可选）
+## 🧪 Suggested Tests
 
 - `SchedulerServiceTests.cs`
 - `WebhookServiceTests.cs`
@@ -148,6 +149,6 @@ MIT License
 
 ---
 
-## ✍️ 作者
+## ✍️ Author
 
 Developed by **Lao Seng** · AutoBackupSeq v1.0
