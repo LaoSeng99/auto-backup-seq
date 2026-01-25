@@ -143,12 +143,6 @@ export interface LogEvent {
 
 ---
 
-## 📜 License
-
-MIT License
-
----
-
 ## ✍️ Author
 
 Developed by **Lao Seng** · AutoBackupSeq v1.0
