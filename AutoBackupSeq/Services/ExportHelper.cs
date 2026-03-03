@@ -1,16 +1,18 @@
-﻿using AutoBackupSeq.Models;
-using System;
-using System.Collections.Generic;
-using System.IO.Compression;
-using System.Linq;
+using AutoBackupSeq.Models;
 using System.Text;
-using System.Threading.Tasks;
 
-namespace AutoBackupSeq;
+namespace AutoBackupSeq.Services;
 
-public static class ExportHelper
+public interface IExportHelper
 {
-    public static void ExportToCsv(List<RequestLog> data, string filePath)
+    void ExportToCsv(List<RequestLog> data, string filePath);
+    void ExportToHtml(List<RequestLog> data, string filePath);
+    string ZipExportDirectory(string exportDirectory);
+}
+
+public class ExportHelper : IExportHelper
+{
+    public void ExportToCsv(List<RequestLog> data, string filePath)
     {
         var sb = new StringBuilder();
         sb.AppendLine("Timestamp,Route,Method,StatusCode,Duration,StaffId,CompanyId");
@@ -23,7 +25,7 @@ public static class ExportHelper
         File.WriteAllText(filePath, sb.ToString());
     }
 
-    public static void ExportToHtml(List<RequestLog> data, string filePath)
+    public void ExportToHtml(List<RequestLog> data, string filePath)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<html><head><meta charset='UTF-8'><style>table{border-collapse:collapse;width:100%;}th,td{border:1px solid #ccc;padding:8px;text-align:left;}th{background:#f4f4f4;}</style></head><body>");
@@ -38,12 +40,8 @@ public static class ExportHelper
         sb.AppendLine("</tbody></table></body></html>");
         File.WriteAllText(filePath, sb.ToString(), Encoding.UTF8);
     }
-}
 
-
-public static class ExportZipHelper
-{
-    public static string ZipExportDirectory(string exportDirectory)
+    public string ZipExportDirectory(string exportDirectory)
     {
         if (!Directory.Exists(exportDirectory))
         {
@@ -55,7 +53,6 @@ public static class ExportZipHelper
 
         try
         {
-            // 复制到临时目录再压缩，避免把旧文件带入
             var tempDir = Path.Combine(exportDirectory, "_tempZip");
             if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
             Directory.CreateDirectory(tempDir);
@@ -67,7 +64,7 @@ public static class ExportZipHelper
                     File.Copy(file, Path.Combine(tempDir, name), overwrite: true);
             }
 
-            ZipFile.CreateFromDirectory(tempDir, zipFile);
+            System.IO.Compression.ZipFile.CreateFromDirectory(tempDir, zipFile);
             Directory.Delete(tempDir, true);
 
             Console.WriteLine($"📦 Exported ZIP: {zipFile}");

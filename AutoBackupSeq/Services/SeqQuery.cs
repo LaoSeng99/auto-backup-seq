@@ -1,19 +1,29 @@
-﻿using System.Text.Json;
-using System.Net.Http.Headers;
 using AutoBackupSeq.Models;
+using System.Text.Json;
 
-namespace AutoBackupSeq;
+namespace AutoBackupSeq.Services;
 
-public static class SeqQuery
+public interface ISeqQuery
 {
-    public static async Task QueryAsync(AppConfig config, DateTime startTime, DateTime endTime)
+    Task QueryAsync(AppConfig config, DateTime startTime, DateTime endTime);
+}
+
+public class SeqQuery : ISeqQuery
+{
+    private readonly HttpClient _httpClient;
+
+    public SeqQuery(HttpClient? httpClient = null)
+    {
+        _httpClient = httpClient ?? new HttpClient();
+    }
+
+    public async Task QueryAsync(AppConfig config, DateTime startTime, DateTime endTime)
     {
         string? afterId = null;
         int total = 0;
 
-        using var client = new HttpClient();
-        if (!string.IsNullOrWhiteSpace(config.ApiKey))
-            client.DefaultRequestHeaders.Add("X-Seq-ApiKey", config.ApiKey);
+        if (!string.IsNullOrWhiteSpace(config.ApiKey) && !_httpClient.DefaultRequestHeaders.Contains("X-Seq-ApiKey"))
+            _httpClient.DefaultRequestHeaders.Add("X-Seq-ApiKey", config.ApiKey);
 
         string outputDir = Path.Combine(AppContext.BaseDirectory, config.BackupDirectory);
         Directory.CreateDirectory(outputDir);
@@ -36,7 +46,7 @@ public static class SeqQuery
             var url = $"{baseUrl}/api/events?count={config.PageSize}&start={startTime:o}&end={endTime:o}&filter={encodedFilter}" +
                       (afterId != null ? $"&afterId={afterId}" : "");
 
-            var response = await client.GetAsync(url);
+            var response = await _httpClient.GetAsync(url);
             if (!response.IsSuccessStatusCode)
             {
                 Console.WriteLine($"❌ Seq query failed. Status: {response.StatusCode}");

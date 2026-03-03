@@ -1,12 +1,22 @@
-﻿using AutoBackupSeq;
+using AutoBackupSeq;
 using AutoBackupSeq.Models;
+using AutoBackupSeq.Services;
+
 var config = ConfigLoader.Load("config.json");
+
+// Service initialization
+IWebhookPayloadSender webhookSender = new WebhookPayloadSender();
+ILogCleaner logCleaner = new LogCleaner();
+IExportHelper exportHelper = new ExportHelper();
+ISeqJsonLogReader logReader = new SeqJsonLogReader();
+ISeqQuery seqQuery = new SeqQuery();
+ISchedulerService schedulerService = new SchedulerService(seqQuery, webhookSender, logReader, exportHelper);
 
 
 while (true)
 {
     CancellationTokenSource? _schedulerCts = null;
-Task? _schedulerTask = null;
+    Task? _schedulerTask = null;
 
     Console.Clear();
     Console.OutputEncoding = System.Text.Encoding.UTF8;
@@ -46,7 +56,7 @@ Welcome to your centralized Seq log manager ✨
             }
             else
             {
-                await SchedulerService.ReadFilesByDate(config);
+                await schedulerService.ReadFilesByDate(config);
             }
             break;
 
@@ -62,7 +72,7 @@ Welcome to your centralized Seq log manager ✨
                 if (start == "y")
                 {
                     _schedulerCts = new CancellationTokenSource();
-                    _schedulerTask = Task.Run(() => SchedulerService.StartAsync(config, _schedulerCts.Token));
+                    _schedulerTask = Task.Run(() => schedulerService.StartAsync(config, _schedulerCts.Token));
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine("✅ Scheduler started in background.");
                     Console.ResetColor();
@@ -91,11 +101,11 @@ Welcome to your centralized Seq log manager ✨
             int days = 30;
             if (!string.IsNullOrWhiteSpace(input) && int.TryParse(input, out var parsed)) days = parsed;
 
-            LogCleaner.CleanupOldFiles(config.BackupDirectory, days);
-            LogCleaner.CleanupOldFiles(Path.Combine(AppContext.BaseDirectory, "exports"), days);
+            logCleaner.CleanupOldFiles(config.BackupDirectory, days);
+            logCleaner.CleanupOldFiles(Path.Combine(AppContext.BaseDirectory, "exports"), days);
             break;
         case "5":
-            await SchedulerService.TestWebhookAsync(config);
+            await schedulerService.TestWebhookAsync(config);
             break;
         case "0":
             Console.WriteLine("👋 Exiting the application...");
@@ -164,6 +174,5 @@ async Task FilterByTime()
     Console.WriteLine($"\n⏳ Will fetch logs from {startTime:yyyy-MM-dd HH:mm} to {endTime:yyyy-MM-dd HH:mm}");
     Console.ResetColor();
 
-    await SeqQuery.QueryAsync(config, startTime, endTime);
+    await seqQuery.QueryAsync(config, startTime, endTime);
 }
-
