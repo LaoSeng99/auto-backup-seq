@@ -1,10 +1,13 @@
-﻿
+namespace AutoBackupSeq.Services;
 
-namespace AutoBackupSeq;
-
-public static class LogCleaner
+public interface ILogCleaner
 {
-    public static void CleanupOldFiles(string folderPath, int days = 30)
+    void CleanupOldFiles(string folderPath, int days = 30);
+}
+
+public class LogCleaner : ILogCleaner
+{
+    public void CleanupOldFiles(string folderPath, int days = 30)
     {
         if (!Directory.Exists(folderPath))
         {

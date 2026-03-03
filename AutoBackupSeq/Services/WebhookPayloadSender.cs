@@ -1,16 +1,22 @@
-﻿using AutoBackupSeq.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
+using AutoBackupSeq.Models;
 
-namespace AutoBackupSeq;
+namespace AutoBackupSeq.Services;
 
-public static class WebhookPayloadSender
+public interface IWebhookPayloadSender
 {
-    public static async Task<bool> SendLogsAsync(List<RequestLog> logs, AppConfig config)
+    Task<bool> SendLogsAsync(List<RequestLog> logs, AppConfig config);
+}
+
+public class WebhookPayloadSender : IWebhookPayloadSender
+{
+    private readonly HttpClient _httpClient;
+
+    public WebhookPayloadSender(HttpClient? httpClient = null)
+    {
+        _httpClient = httpClient ?? new HttpClient();
+    }
+
+    public async Task<bool> SendLogsAsync(List<RequestLog> logs, AppConfig config)
     {
         if (!config.Webhook.SendFilteredLogs || string.IsNullOrWhiteSpace(config.Webhook.Url))
         {
@@ -20,15 +26,15 @@ public static class WebhookPayloadSender
 
         try
         {
-            using var client = new HttpClient();
-            client.DefaultRequestHeaders.TryAddWithoutValidation(
+            var request = new HttpRequestMessage(HttpMethod.Post, config.Webhook.Url);
+            request.Headers.TryAddWithoutValidation(
                 config.Webhook.Header ?? "Authorization",
                 config.Webhook.Token);
 
-            var json = JsonSerializer.Serialize(logs, new JsonSerializerOptions { WriteIndented = false });
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var json = System.Text.Json.JsonSerializer.Serialize(logs, new System.Text.Json.JsonSerializerOptions { WriteIndented = false });
+            request.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
-            var response = await client.PostAsync(config.Webhook.Url, content);
+            var response = await _httpClient.SendAsync(request);
             if (response.IsSuccessStatusCode)
             {
                 Console.WriteLine("📤 Filtered logs sent to Webhook ✅");

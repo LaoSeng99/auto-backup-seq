@@ -1,13 +1,39 @@
-﻿using AutoBackupSeq.Models;
-using System.Diagnostics.Metrics;
+using AutoBackupSeq.Models;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace AutoBackupSeq;
-public static class SchedulerService
+namespace AutoBackupSeq.Services;
+
+public interface ISchedulerService
 {
-    public static async Task StartAsync(AppConfig config, CancellationToken cancellationToken)
+    Task StartAsync(AppConfig config, CancellationToken cancellationToken);
+    List<string> GetAvailableDates(string backupDir, string groupBy = "day");
+    List<string> GetFilesForDate(string backupDir, string datePrefix);
+    Task ReadFilesByDate(AppConfig config);
+    Task TestWebhookAsync(AppConfig config);
+}
+
+public class SchedulerService : ISchedulerService
+{
+    private readonly ISeqQuery _seqQuery;
+    private readonly IWebhookPayloadSender _webhookSender;
+    private readonly ISeqJsonLogReader _logReader;
+    private readonly IExportHelper _exportHelper;
+
+    public SchedulerService(
+        ISeqQuery seqQuery,
+        IWebhookPayloadSender webhookSender,
+        ISeqJsonLogReader logReader,
+        IExportHelper exportHelper)
+    {
+        _seqQuery = seqQuery;
+        _webhookSender = webhookSender;
+        _logReader = logReader;
+        _exportHelper = exportHelper;
+    }
+
+    public async Task StartAsync(AppConfig config, CancellationToken cancellationToken)
     {
         if (!config.Scheduler.Enabled)
         {
@@ -22,7 +48,7 @@ public static class SchedulerService
             var end = now.AddMinutes(config.Scheduler.QueryEndOffsetMinutes);
 
             Console.WriteLine($"\n⏳ Scheduled run: {start:yyyy-MM-dd HH:mm} → {end:HH:mm}");
-            await SeqQuery.QueryAsync(config, start, end);
+            await _seqQuery.QueryAsync(config, start, end);
             if (config.Webhook.SendFilteredLogs)
             {
                 try
@@ -37,15 +63,15 @@ public static class SchedulerService
                     {
                         await using var stream = File.OpenRead(latestFile.FullName);
                         var raw = await JsonSerializer.DeserializeAsync<List<JsonElement>>(stream);
-                        var logs = raw?.Select(SeqJsonLogReader.MapToLogEntry).ToList() ?? new();
+                        var logs = raw?.Select(_logReader.MapToLogEntry).ToList() ?? new();
 
                         bool success = false;
                         for (int i = 0; i < config.Webhook.RetryCount; i++)
                         {
-                            success = await WebhookPayloadSender.SendLogsAsync(logs, config);
+                            success = await _webhookSender.SendLogsAsync(logs, config);
                             if (success) break;
                             Console.WriteLine($"🔁 Webhook retry {i + 1}/{config.Webhook.RetryCount}...");
-                            await Task.Delay((config.Webhook.RetryIntervalBySec * 1000));
+                            await Task.Delay((config.Webhook.RetryIntervalBySec * 1000), cancellationToken);
                         }
 
                         if (!success)
@@ -66,12 +92,19 @@ public static class SchedulerService
 
 
             Console.WriteLine($"🕒 Waiting {config.Scheduler.IntervalMinutes} minutes...");
-            await Task.Delay(TimeSpan.FromMinutes(config.Scheduler.IntervalMinutes));
+            try
+            {
+                await Task.Delay(TimeSpan.FromMinutes(config.Scheduler.IntervalMinutes), cancellationToken);
+            }
+            catch (TaskCanceledException)
+            {
+                break;
+            }
         }
     }
 
 
-    public static List<string> GetAvailableDates(string backupDir, string groupBy = "day")
+    public List<string> GetAvailableDates(string backupDir, string groupBy = "day")
     {
         if (!Directory.Exists(backupDir)) return new();
 
@@ -94,13 +127,13 @@ public static class SchedulerService
         };
     }
 
-    public static List<string> GetFilesForDate(string backupDir, string datePrefix)
+    public List<string> GetFilesForDate(string backupDir, string datePrefix)
     {
         if (!Directory.Exists(backupDir)) return new();
         return Directory.GetFiles(backupDir, $"logs_{datePrefix}*.json").ToList();
     }
 
-    public static async Task ReadFilesByDate(AppConfig config)
+    public async Task ReadFilesByDate(AppConfig config)
     {
         var groupBy = "day";
         Console.WriteLine("📆 Choose how you want to group files: ");
@@ -161,12 +194,12 @@ public static class SchedulerService
             foreach (var log in logs)
             {
                 if (log.ValueKind != JsonValueKind.Object || !log.TryGetProperty("Properties", out var props)) continue;
-                var entry = SeqJsonLogReader.MapToLogEntry(log);
+                var entry = _logReader.MapToLogEntry(log);
                 allLogEntries.Add(entry);
             }
         }
 
-        SeqJsonLogReader.AnalysisLog(allLogEntries);
+        _logReader.AnalysisLog(allLogEntries);
 
         Console.WriteLine("");
         Console.WriteLine("💾 Do you want to export the analysis?");
@@ -184,23 +217,23 @@ public static class SchedulerService
         {
             case "1":
                 var htmlFile = Path.Combine(exportDir, $"analysis_{DateTime.Now:yyyyMMdd_HHmmss}.html");
-                ExportHelper.ExportToHtml(allLogEntries, htmlFile);
+                _exportHelper.ExportToHtml(allLogEntries, htmlFile);
                 Console.WriteLine($"✅ Exported to HTML: {htmlFile}");
                 break;
             case "2":
                 var csvFile = Path.Combine(exportDir, $"analysis_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
-                ExportHelper.ExportToCsv(allLogEntries, csvFile);
+                _exportHelper.ExportToCsv(allLogEntries, csvFile);
                 Console.WriteLine($"✅ Exported to CSV: {csvFile}");
                 break;
             case "3":
-                await WebhookPayloadSender.SendLogsAsync(allLogEntries, config);
+                await _webhookSender.SendLogsAsync(allLogEntries, config);
                 break;
             default:
             case "4": break;
         }
     }
 
-    public static async Task TestWebhookAsync(AppConfig config)
+    public async Task TestWebhookAsync(AppConfig config)
     {
         if (!config.Webhook.SendFilteredLogs)
         {
@@ -223,7 +256,7 @@ public static class SchedulerService
 
         await using var stream = File.OpenRead(latestFile.FullName);
         var raw = await JsonSerializer.DeserializeAsync<List<JsonElement>>(stream);
-        var logs = raw?.Select(SeqJsonLogReader.MapToLogEntry).ToList() ?? new();
-        await WebhookPayloadSender.SendLogsAsync(logs, config);
+        var logs = raw?.Select(_logReader.MapToLogEntry).ToList() ?? new();
+        await _webhookSender.SendLogsAsync(logs, config);
     }
 }
